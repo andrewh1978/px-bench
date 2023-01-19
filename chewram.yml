@@ -1,0 +1,77 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: chewram
+  namespace: px-bench
+data:
+  chewram.pl: |-
+    #!/usr/bin/perl
+    # This script will consume RAM until there are $target MB remaining
+    # and then sleep for $sleep hours
+    use warnings;
+    use strict;
+    my $target = 8192;
+    my $sleep = 4;
+    my @array;
+    my $string = "x" x (1048576*64);
+    while(my $memfree = get_memfree() > $target) {
+            push @array, $string;
+            print"Memory free:".int(get_memfree())."MB\n";
+    }
+    open F, ">/ready";
+    sleep($sleep * 3600);
+    sub get_memfree {
+            open F, "</proc/meminfo";
+            (grep /MemFree/, <F>)[0] =~ /\d+/;
+            my $memfree = $&;
+            $memfree /= 1024;
+            close F;
+            return $memfree;
+    }
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: chewram
+  namespace: px-bench
+  labels:
+    app: chewram
+spec:
+  selector:
+    matchLabels:
+      app: chewram
+  minReadySeconds: 0
+  template:
+    metadata:
+      labels:
+        app: chewram
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: px/enabled
+                operator: NotIn
+                values:
+                - "false"
+      terminationGracePeriodSeconds: 0
+      volumes:
+      - name: chewram
+        configMap:
+          name: chewram
+      containers:
+        - name: chewram
+          image: ubuntu:22.04
+          imagePullPolicy: "IfNotPresent"
+          command: [ "perl", "/chewram.pl" ]
+          readinessProbe:
+            exec:
+              command: [ "cat", "/ready" ]
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          volumeMounts:
+          - name: chewram
+            mountPath: /chewram.pl
+            readOnly: true
+            subPath: chewram.pl
