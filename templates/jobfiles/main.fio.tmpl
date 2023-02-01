@@ -1,0 +1,38 @@
+############################################################
+## main.fio.tmpl
+##
+## This is a template for creating a fio jobfile.
+## Do not edit. This is read by other scripts/functions.
+##
+############################################################
+# This file was automatically created by px-bench
+############################################################
+# Workload: ${blocksize}-${readwrite}
+#
+[global]
+size=${size}
+runtime=${runtime}
+iodepth=${iodepth}
+ioengine=${ioengine}
+direct=${direct}
+fsync_on_close=1
+numjobs=${numjobs}
+group_reporting=1
+directory=${directory}
+filename=${filename}
+
+##----layout output-------
+[layout-output]
+blocksize=${blocksize}
+readwrite=read  # This will force fio to write to create the file, not just sparse creation.
+create_only=1
+
+##----Begin Workload Test-------
+[${blocksize}-${readwrite}]
+stonewall
+blocksize=${blocksize}
+readwrite=${readwrite}
+rwmixread=${rwmixread}
+rwmixwrite=${rwmixwrite}
+
+##
