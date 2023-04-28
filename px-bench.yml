@@ -1,0 +1,171 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: px-bench
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: files
+  namespace: px-bench
+data:
+  control.env: |-
+    ######
+    # Edit the values in this file to control the job files created
+    #
+    ######
+    # Global Variables: These are used in each jobfile.
+    # Variable names must be supported fio options.
+    # The values added here will be added to the global section of the jobfiles.
+    
+    ######
+    # Most common options
+    size=10GiB              # size of region of IO testing, will also be the size of the file
+    runtime=20              # runtime in seconds
+    iodepth=128
+    directory=/px-bench/    # Directory for the testfile. Should be the device under test (DUT)
+    filename=fio.dat        # Filename for the testfile, will be located in the directory above
+    rwmixread=60            # only used for readwrite and randrw workloads
+    rwmixwrite=40
+    
+    ######
+    # Less commonly changed options
+    ioengine=libaio
+    direct=1
+    fsync_on_close=1
+    numjobs=1
+    group_reporting=1
+    directory=/px-bench/
+    filename=fio.dat
+    
+    ######
+    # px-bench specific options. These are not fio options
+    runfiles_dir=/fio
+    mixed_workloads="rw readwrite randrw"   # rw is a synonym for readwrite
+    
+    ######
+    # Iteration Control: Each variable will be looped over to create the jobs to be run.
+    # Do not change the variable name. The variable must consist of one or more space
+    # delimited strings that are legal values for fio to use in a job file.
+    #
+    # For now, the only supported variables here are blocksize and randwrite
+    #
+    # Example: If you have 2 blocksize values, and 3 randwrite values, this will result in 6 jobfiles.
+    
+    blocksize_list="4k 16k 256k"                 # We have not tested fio's support for different values for read and write ("bs=8k,32k")
+    readwrite_list="read write readwrite"        # valid values are read, write, randread, readwrite (or rw), randrw.
+    storageclass_list="storageclass_1 storageclass2"    # Existing storageclasses for use by the benchmarks
+  run_jobs.sh: |-
+    #!/usr/bin/env bash
+    set -a
+    apt update
+    apt-get -y install gettext-base
+    
+    # read the control file
+    source /px-bench/control.env
+    
+    #iterate throught the block sizes and rw settings
+    for b in ${blocksize_list}
+    do
+        for rw in ${readwrite_list}
+        do
+            blocksize=$b
+            readwrite=$rw
+    
+            date=$(date +%s)
+            this_job_workdir=${runfiles_dir}/$b-$rw-$date
+            echo
+            echo "===================="
+            echo "Storing runfiles in mkdir -p ${this_job_workdir}"
+            mkdir -p ${this_job_workdir}
+    
+            echo "Creating jobfile for blocksize $b, io profile $rw"
+            envsubst < /px-bench/main.fio.tmpl > ${this_job_workdir}/$b-$rw.fio
+    
+            #if this isn't a read-write mixed workload, delete the rwmix options just for clarity
+            if [[ " ${mixed_workloads[@]} " =~ " ${rw} " ]]; then
+                echo "Mixed workload, continuing"
+            else
+                echo "Not a mixed workload, removing mixed workload parameters"
+                sed -i '/rwmix/d' ${this_job_workdir}/$b-$rw.fio
+            fi
+            #clean up comment lines
+            sed -i '/##/d' ${this_job_workdir}/$b-$rw.fio
+    
+            echo "wrote ${this_job_workdir}/$b-$rw.fio"
+    
+            echo "Starting run $b-$rw"
+            # Make your config map from the above file and launch it here.
+            echo "I'm pretending I'm running something"
+            sleep 2 # pretending to do work just for testing. Remove me later
+            echo "Finished run $b-$rw"
+            echo
+        done
+    done
+    sleep 3600
+  main.fio.tmpl: |-
+    ############################################################
+    ## main.fio.tmpl
+    ##
+    ## This is a template for creating a fio jobfile.
+    ## Do not edit. This is read by other scripts/functions.
+    ##
+    ############################################################
+    # This file was automatically created by px-bench
+    ############################################################
+    # Workload: ${blocksize}-${readwrite}
+    #
+    [global]
+    size=${size}
+    runtime=${runtime}
+    iodepth=${iodepth}
+    ioengine=${ioengine}
+    direct=${direct}
+    fsync_on_close=1
+    numjobs=${numjobs}
+    group_reporting=1
+    directory=${directory}
+    filename=${filename}
+    
+    ##----layout output-------
+    [layout-output]
+    blocksize=${blocksize}
+    readwrite=read  # This will force fio to write to create the file, not just sparse creation.
+    create_only=1
+    
+    ##----Begin Workload Test-------
+    [${blocksize}-${readwrite}]
+    stonewall
+    blocksize=${blocksize}
+    readwrite=${readwrite}
+    rwmixread=${rwmixread}
+    rwmixwrite=${rwmixwrite}
+    
+    ##
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: run
+  namespace: px-bench
+spec:
+  template:
+    metadata:
+      name: run
+      labels:
+        px-bench: run
+    spec:
+      terminationGracePeriodSeconds: 0
+      containers:
+      - name: run
+        image: debian
+        imagePullPolicy: "IfNotPresent"
+        command: [ "/bin/bash", "/px-bench/run_jobs.sh" ]
+        volumeMounts:
+        - name: files
+          mountPath: /px-bench
+      volumes:
+      - name: files
+        configMap:
+          name: files
+      restartPolicy: OnFailure
