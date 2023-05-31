@@ -21,7 +21,7 @@ data:
   fsync_on_close: "1"
   numjobs: "1"
   group_reporting: "1"
-  directory: "/px-bench/"
+  directory: "/mnt/"
   filename: "fio.dat"
 
   ######
@@ -92,6 +92,7 @@ data:
             echo
         done
     done
+    kubectl create configmap fio --from-file=/px-bench -n px-bench
     sleep 3600
   main.fio.tmpl: |-
     ############################################################
@@ -148,7 +149,7 @@ spec:
       terminationGracePeriodSeconds: 0
       containers:
       - name: run
-        image: ubuntu:22.04
+        image: andrewh1978/px-bench
         imagePullPolicy: "IfNotPresent"
         command: [ "/bin/bash", "/px-bench/run_jobs.sh" ]
         envFrom:
