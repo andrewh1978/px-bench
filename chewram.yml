@@ -62,7 +62,7 @@ spec:
           name: chewram
       containers:
         - name: chewram
-          image: ubuntu:22.04
+          image: andrewh1978/px-bench
           imagePullPolicy: "IfNotPresent"
           command: [ "perl", "/chewram.pl" ]
           readinessProbe:
