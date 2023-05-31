@@ -1,0 +1,4 @@
+Do we need fio.yaml?
+Do we need templates/?
+Are there redundant variables?
+How do we loop through storageclasses?
