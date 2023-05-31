@@ -1,4 +1,3 @@
-Do we need fio.yaml?
-Do we need templates/?
 Are there redundant variables?
-How do we loop through storageclasses?
+Loop through storageclasses to generate more fio configs
+Create a job that has a PVC for each storageclass
