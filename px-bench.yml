@@ -49,50 +49,36 @@ metadata:
   namespace: px-bench
 data:
   run_jobs.sh: |-
-    #!/usr/bin/env bash
-    set -a
-    apt update
-    apt-get -y install gettext-base
-    
+    #!/usr/bin/bash
+    mkdir -p $runfiles_dir
     #iterate throught the block sizes and rw settings
-    for b in ${blocksize_list}
-    do
-        for rw in ${readwrite_list}
-        do
-            blocksize=$b
-            readwrite=$rw
-    
-            date=$(date +%s)
-            this_job_workdir=${runfiles_dir}/$b-$rw-$date
-            echo
-            echo "===================="
-            echo "Storing runfiles in mkdir -p ${this_job_workdir}"
-            mkdir -p ${this_job_workdir}
-    
-            echo "Creating jobfile for blocksize $b, io profile $rw"
-            envsubst < /px-bench/main.fio.tmpl > ${this_job_workdir}/$b-$rw.fio
-    
-            #if this isn't a read-write mixed workload, delete the rwmix options just for clarity
-            if [[ " ${mixed_workloads[@]} " =~ " ${rw} " ]]; then
-                echo "Mixed workload, continuing"
-            else
-                echo "Not a mixed workload, removing mixed workload parameters"
-                sed -i '/rwmix/d' ${this_job_workdir}/$b-$rw.fio
-            fi
-            #clean up comment lines
-            sed -i '/##/d' ${this_job_workdir}/$b-$rw.fio
-    
-            echo "wrote ${this_job_workdir}/$b-$rw.fio"
-    
-            echo "Starting run $b-$rw"
-            # Make your config map from the above file and launch it here.
-            echo "I'm pretending I'm running something"
-            sleep 2 # pretending to do work just for testing. Remove me later
-            echo "Finished run $b-$rw"
-            echo
+    for sc in $storageclass_list; do
+        for blocksize in ${blocksize_list}; do
+            for readwrite in ${readwrite_list}; do
+                export blocksize readwrite
+                this_job_workdir=${runfiles_dir}/$blocksize-$readwrite
+        
+                echo "Creating jobfile for storageclass $sc, blocksize $blocksize, io profile $readwrite"
+                filename=$runfiles_dir/${sc}_$blocksize-$readwrite.fio
+                envsubst < /px-bench/main.fio.tmpl > $filename
+        
+                #if this isn't a read-write mixed workload, delete the rwmix options just for clarity
+                if [[ " ${mixed_workloads[@]} " =~ " ${rw} " ]]; then
+                    echo "Mixed workload, continuing"
+                else
+                    echo "Not a mixed workload, removing mixed workload parameters"
+                    sed -i '/rwmix/d' $filename
+                fi
+                #clean up comment lines
+                sed -i '/##/d' $filename
+        
+                echo "wrote $filename"
+                echo "Finished ${s}_$blocksize-$readwrite"
+                echo
+            done
         done
     done
-    kubectl create configmap fio --from-file=/px-bench -n px-bench
+    kubectl create configmap fio --from-file=$runfiles_dir -n px-bench
     sleep 3600
   main.fio.tmpl: |-
     ############################################################
@@ -131,8 +117,39 @@ data:
     readwrite=${readwrite}
     rwmixread=${rwmixread}
     rwmixwrite=${rwmixwrite}
-    
-    ##
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: px-bench
+  namespace: px-bench
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: px-bench
+  namespace: px-bench
+rules:
+  - apiGroups: [""]
+    resources:
+      - configmaps
+      - jobs
+      - pods
+    verbs:
+      - create
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: px-bench
+  namespace: px-bench
+subjects:
+  - kind: ServiceAccount
+    name: px-bench
+roleRef:
+  kind: Role
+  name: px-bench
+  apiGroup: rbac.authorization.k8s.io
 ---
 apiVersion: batch/v1
 kind: Job
@@ -146,6 +163,7 @@ spec:
       labels:
         px-bench: run
     spec:
+      serviceAccountName: px-bench
       terminationGracePeriodSeconds: 0
       containers:
       - name: run
