@@ -1,3 +1,1 @@
-Are there redundant variables?
-Loop through storageclasses to generate more fio configs
 Create a job that has a PVC for each storageclass
