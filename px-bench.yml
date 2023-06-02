@@ -26,7 +26,6 @@ data:
 
   ######
   # px-bench specific options. These are not fio options
-  runfiles_dir: "/fio"
   mixed_workloads: "rw readwrite randrw"   # rw is a synonym for readwrite
 
   ######
@@ -40,7 +39,7 @@ data:
 
   blocksize_list: "4k 16k 256k"                 # We have not tested fio's support for different values for read and write ("bs=8k,32k")
   readwrite_list: "read write readwrite"        # valid values are read, write, randread, readwrite (or rw), randrw.
-  storageclass_list: "storageclass_1 storageclass2"    # Existing storageclasses for use by the benchmarks
+  storageclass_list: "storageclass1 storageclass2"    # Existing storageclasses for use by the benchmarks
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -48,18 +47,18 @@ metadata:
   name: files
   namespace: px-bench
 data:
-  run_jobs.sh: |-
+  run.sh: |-
     #!/usr/bin/bash
-    mkdir -p $runfiles_dir
+    mkdir /fio
     #iterate throught the block sizes and rw settings
     for sc in $storageclass_list; do
         for blocksize in ${blocksize_list}; do
             for readwrite in ${readwrite_list}; do
                 export blocksize readwrite
-                this_job_workdir=${runfiles_dir}/$blocksize-$readwrite
+                this_job_workdir=/fio/$blocksize-$readwrite
         
                 echo "Creating jobfile for storageclass $sc, blocksize $blocksize, io profile $readwrite"
-                filename=$runfiles_dir/${sc}_$blocksize-$readwrite.fio
+                filename=/fio/${sc}_$blocksize-$readwrite.fio
                 envsubst < /px-bench/main.fio.tmpl > $filename
         
                 #if this isn't a read-write mixed workload, delete the rwmix options just for clarity
@@ -73,12 +72,74 @@ data:
                 sed -i '/##/d' $filename
         
                 echo "wrote $filename"
-                echo "Finished ${s}_$blocksize-$readwrite"
+                echo "Finished ${sc}_$blocksize-$readwrite"
                 echo
             done
         done
     done
-    kubectl create configmap fio --from-file=$runfiles_dir -n px-bench
+    kubectl create configmap fio --from-file=/fio -n px-bench
+    for sc in $storageclass_list; do
+      volumes="$volumes\
+          - name: mnt-$sc
+            persistentVolumeClaim:
+              claimName: mnt-$sc
+    "
+      volumemounts="$volumemounts\
+            - name: mnt-$sc
+              mountPath: /mnt/$sc
+    "
+      kubectl apply -f - <<EOF
+    kind: PersistentVolumeClaim
+    apiVersion: v1
+    metadata:
+      #labels:
+        #px-bench: mnt-$sc
+       name: mnt-$sc
+    spec:
+       accessModes:
+         - ReadWriteOnce
+       resources:
+         requests:
+           storage: 100Gi
+    EOF
+    done
+    echo $pvcs >/pvc.yml
+    kubectl apply -f - <<EOF
+    apiVersion: batch/v1
+    kind: Job
+    metadata:
+      name: fio
+      namespace: px-bench
+    spec:
+      template:
+        metadata:
+          name: fio
+          labels:
+            px-bench: fio
+        spec:
+          serviceAccountName: px-bench
+          terminationGracePeriodSeconds: 0
+          containers:
+          - name: fio
+            image: andrewh1978/px-bench
+            imagePullPolicy: "IfNotPresent"
+            command: [ "/bin/bash", "/px-bench/fio.sh" ]
+            volumeMounts:
+            - name: files
+              mountPath: /px-bench
+            - name: fio
+              mountPath: /fio
+    $volumemounts
+          volumes:
+          - name: files
+            configMap:
+              name: files
+          - name: fio
+            configMap:
+              name: fio
+    $volumes
+          restartPolicy: OnFailure
+    EOF
     sleep 3600
   main.fio.tmpl: |-
     ############################################################
@@ -117,6 +178,9 @@ data:
     readwrite=${readwrite}
     rwmixread=${rwmixread}
     rwmixwrite=${rwmixwrite}
+  fio.sh: |-
+    #!/usr/bin/bash
+    sleep 300
 ---
 apiVersion: v1
 kind: ServiceAccount
@@ -133,10 +197,17 @@ rules:
   - apiGroups: [""]
     resources:
       - configmaps
-      - jobs
-      - pods
+      - persistentvolumeclaims
     verbs:
       - create
+      - get
+  - apiGroups: ["batch"]
+    resources:
+      - jobs
+    verbs:
+      - create
+      - list
+      - get
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
@@ -169,7 +240,7 @@ spec:
       - name: run
         image: andrewh1978/px-bench
         imagePullPolicy: "IfNotPresent"
-        command: [ "/bin/bash", "/px-bench/run_jobs.sh" ]
+        command: [ "/bin/bash", "/px-bench/run.sh" ]
         envFrom:
         - configMapRef:
             name: env
