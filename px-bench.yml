@@ -39,7 +39,7 @@ data:
 
   blocksize_list: "4k 16k 256k"                 # We have not tested fio's support for different values for read and write ("bs=8k,32k")
   readwrite_list: "read write readwrite"        # valid values are read, write, randread, readwrite (or rw), randrw.
-  storageclass_list: "storageclass1 storageclass2"    # Existing storageclasses for use by the benchmarks
+  storageclass_list: "px-db px-replicated"    # Existing storageclasses for use by the benchmarks
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -77,7 +77,7 @@ data:
             done
         done
     done
-    kubectl create configmap fio --from-file=/fio -n px-bench
+    kubectl create configmap fio-config --from-file=/fio -n px-bench
     for sc in $storageclass_list; do
       volumes="$volumes\
           - name: mnt-$sc
@@ -96,6 +96,7 @@ data:
         #px-bench: mnt-$sc
        name: mnt-$sc
     spec:
+       storageClassName: $sc
        accessModes:
          - ReadWriteOnce
        resources:
@@ -136,7 +137,7 @@ data:
               name: files
           - name: fio
             configMap:
-              name: fio
+              name: fio-config
     $volumes
           restartPolicy: OnFailure
     EOF
@@ -180,7 +181,11 @@ data:
     rwmixwrite=${rwmixwrite}
   fio.sh: |-
     #!/usr/bin/bash
-    sleep 300
+    mkdir /output
+    for i in /fio/*; do
+      fio $i
+    done
+    kubectl create configmap fio-output --from-file=/output -n px-bench
 ---
 apiVersion: v1
 kind: ServiceAccount
