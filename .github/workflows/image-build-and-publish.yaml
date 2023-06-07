@@ -7,13 +7,13 @@ name: image-build-and-publish
 
 on:
   push:
-    branches: [ "master" ]
+    branches: [ "main" ]
     # Publish  tags as releases.
     tags: [ '*' ]
   release:
     types: [published]
   pull_request:
-    branches: [ "master" ]
+    branches: [ "main" ]
 
 env:
   # Use docker.io for Docker Hub if empty
@@ -70,7 +70,7 @@ jobs:
 
       - name: Create tags (version and latest) if this is a release
         if: github.event_name == 'release'
-        id: tag-master
+        id: tag-main
         run: |
           VERSION=$(cat VERSION)
           echo "VERSION=$VERSION" >> $GITHUB_ENV
@@ -79,7 +79,7 @@ jobs:
           
       - name: Create tags (version only) if this is NOT a release
         if: github.event_name != 'release'
-        id: tag-non-master
+        id: tag-non-main
         run: |
           VERSION="dev"
           echo "VERSION=$VERSION" >> $GITHUB_ENV
