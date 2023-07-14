@@ -90,8 +90,6 @@ data:
     kind: PersistentVolumeClaim
     apiVersion: v1
     metadata:
-      #labels:
-        #px-bench: mnt-$sc
        name: mnt-$sc
     spec:
        storageClassName: $sc
