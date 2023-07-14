@@ -21,8 +21,6 @@ data:
   fsync_on_close: "1"
   numjobs: "1"
   group_reporting: "1"
-  directory: "/mnt/"
-  filename: "fio.dat"
 
   ######
   # px-bench specific options. These are not fio options
@@ -54,7 +52,7 @@ data:
     for sc in $storageclass_list; do
         for blocksize in ${blocksize_list}; do
             for readwrite in ${readwrite_list}; do
-                export blocksize readwrite
+                export blocksize readwrite sc
                 this_job_workdir=/fio/$blocksize-$readwrite
         
                 echo "Creating jobfile for storageclass $sc, blocksize $blocksize, io profile $readwrite"
@@ -141,7 +139,7 @@ data:
     $volumes
           restartPolicy: OnFailure
     EOF
-    sleep 3600
+    kubectl wait --for=condition=complete --timeout=86400s job/fio -n px-bench
   main.fio.tmpl: |-
     ############################################################
     ## main.fio.tmpl
@@ -163,8 +161,8 @@ data:
     fsync_on_close=1
     numjobs=${numjobs}
     group_reporting=1
-    directory=${directory}
-    filename=${filename}
+    directory=/mnt/${sc}
+    filename=fio.dat
     
     ##----layout output-------
     [layout-output]
@@ -183,7 +181,7 @@ data:
     #!/usr/bin/bash
     mkdir /output
     for i in /fio/*; do
-      fio $i
+      fio $i | tee /output/$(basename $i .fio)
     done
     kubectl create configmap fio-output --from-file=/output -n px-bench
 ---
