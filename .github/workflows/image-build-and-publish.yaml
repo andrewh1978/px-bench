@@ -101,8 +101,6 @@ jobs:
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ env.TAGS }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=local
-          cache-to: type=local
 
       # Sign the resulting Docker image digest except on PRs.
       # This will only write to the public Rekor transparency log when the Docker
