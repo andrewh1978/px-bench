@@ -119,7 +119,7 @@ data:
           containers:
           - name: fio
             image: andrewh1978/px-bench
-            imagePullPolicy: "IfNotPresent"
+            imagePullPolicy: "Always"
             command: [ "/bin/bash", "/px-bench/fio.sh" ]
             volumeMounts:
             - name: files
@@ -169,7 +169,7 @@ data:
     create_only=1
     
     ##----Begin Workload Test-------
-    [${blocksize}-${readwrite}]
+    [${sc}_${blocksize}_${readwrite}]
     stonewall
     blocksize=${blocksize}
     readwrite=${readwrite}
@@ -177,11 +177,18 @@ data:
     rwmixwrite=${rwmixwrite}
   fio.sh: |-
     #!/usr/bin/bash
-    mkdir /output
+    mkdir /output-json
+    mkdir /output-csv
     for i in /fio/*; do
-      fio $i | tee /output/$(basename $i .fio)
+      echo $(date +"%Y-%m-%d %H:%M:%S") - Running fio for $i
+      fio $i --output-format=json | tee /output-json/$(basename $i .fio)
+      jq '.jobs[1] | {jobname, read_iops: .read.iops, write_iops: .write.iops, read_lat: .read.lat.mean, write_lat: .write.lat.mean, read_bw: .read.bw, write_bw: .write.bw }' /output-json/$(basename $i .fio) | jq -r ' flatten | @csv' >/output-csv/$(basename $i .fio)
     done
-    kubectl create configmap fio-output --from-file=/output -n px-bench
+    kubectl create configmap fio-output --from-file=/output-json -n px-bench
+    kubectl create configmap fio-csv --from-file=/output-csv -n px-bench
+    echo "jobname, read_iops, write_iops, read_lat, write_lat, read_bw, write_bw" >/csv
+    kubectl get cm -n px-bench fio-csv -o yaml | grep -A 1 '|' | grep -v '|' | sed 's/^ *//' >>/csv
+    kubectl create configmap csv --from-file=/csv -n px-bench
 ---
 apiVersion: v1
 kind: ServiceAccount
@@ -240,7 +247,7 @@ spec:
       containers:
       - name: run
         image: andrewh1978/px-bench
-        imagePullPolicy: "IfNotPresent"
+        imagePullPolicy: "Always"
         command: [ "/bin/bash", "/px-bench/run.sh" ]
         envFrom:
         - configMapRef:
