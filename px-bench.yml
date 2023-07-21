@@ -182,7 +182,7 @@ data:
     for i in /fio/*; do
       echo $(date +"%Y-%m-%d %H:%M:%S") - Running fio for $i
       fio $i --output-format=json | tee /output-json/$(basename $i .fio)
-      jq '.jobs[1] | {jobname, read_iops: .read.iops, write_iops: .write.iops, read_lat: .read.lat.mean, write_lat: .write.lat.mean, read_bw: .read.bw, write_bw: .write.bw }' /output-json/$(basename $i .fio) | jq -r ' flatten | @csv' >/output-csv/$(basename $i .fio)
+      jq '.jobs[1] | {jobname, read_iops: .read.iops, write_iops: .write.iops, read_lat: .read.lat_ns.mean, write_lat: .write.lat_ns.mean, read_bw: .read.bw, write_bw: .write.bw }' /output-json/$(basename $i .fio) | jq -r ' flatten | @csv' >/output-csv/$(basename $i .fio)
     done
     kubectl create configmap fio-output --from-file=/output-json -n px-bench
     kubectl create configmap fio-csv --from-file=/output-csv -n px-bench
