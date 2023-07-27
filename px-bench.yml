@@ -193,8 +193,8 @@ data:
     done
     kubectl create configmap fio-output --from-file=/output-json -n px-bench
     kubectl create configmap fio-csv --from-file=/output-csv -n px-bench
-    echo "jobname, read_iops, write_iops, read_lat, write_lat, read_bw, write_bw" >/csv
-    kubectl get cm -n px-bench fio-csv -o yaml | grep -A 1 '|' | grep -v '|' | sed 's/^ *//' >>/csv
+    echo "storageclass, blocksize, workload, read_iops, write_iops, read_lat, write_lat, read_bw, write_bw" >/csv
+    kubectl get cm -n px-bench fio-csv -o yaml | grep -A 1 '|' | grep -v '|' | sed 's/^ *//;s/"//g;s/_/,/g' >>/csv
     kubectl create configmap csv --from-file=/csv -n px-bench
 ---
 apiVersion: v1
