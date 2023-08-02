@@ -9,7 +9,8 @@ metadata:
   name: env
   namespace: px-bench
 data:
-  size: "10GiB"             # size of region of IO testing, will also be the size of the file
+  file_size: "10GiB"             # size of region of IO testing, will also be the size of the file
+  pvc_size: "50Gi"
   runtime: "20"             # runtime in seconds
   iodepth: "128"
   rwmixread: "60"           # only used for readwrite and randrw workloads
@@ -100,7 +101,7 @@ data:
          - ReadWriteOnce
        resources:
          requests:
-           storage: 100Gi
+           storage: $pvc_size
     EOF
     done
     echo $pvcs >/pvc.yml
@@ -153,7 +154,7 @@ data:
     ############################################################
     #
     [global]
-    size=${size}
+    size=$file_size
     runtime=${runtime}
     ${time_based}
     loops=${loops}
