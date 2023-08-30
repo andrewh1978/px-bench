@@ -3,7 +3,7 @@
 ## A framework for running storage performance benchmarks on Kubernetes based platforms. 
 
 * `git clone` the repository to a Linux (macOS may work but not tested) system with `kubectl` access to the K8s cluster.
-* If necessary, build the image:
+* If necessary, build the image and push to your registry:
 ```
 cd image
 docker build -t px-bench .
@@ -18,6 +18,8 @@ docker push ...
 
 This will iterate through the combinations of `blocksize_list`, `readwrite_list`, and `storageclass_list` set in the ConfigMap, and runs those as independent `fio` jobs. Output will go the ConfigMap `fio-output`. Configurations will go to the ConfigMap `fio-config`.
 
-To retrieve the output for processing, run `kubectl get cm csv -n px-bench -o jsonpath='{.data.csv}'`. Open the [spreadsheet](https://docs.google.com/spreadsheets/d/1MZ4yRnZQA59WjcarMTrr2j3BW6X8_3gS68ywdU1BNzQ/edit?usp=sharing) and make a copy. Paste the CSV into the sheet at A1 and make sure "Split text to columns" is selected. Click the Extensions menu and select "Apps Script". Click Run. This should create a number of new sheets populated with some bar charts.
+To retrieve the output for processing, run `kubectl get cm csv -n px-bench -o jsonpath='{.data.csv}'`. Open the [spreadsheet](https://docs.google.com/spreadsheets/d/1MZ4yRnZQA59WjcarMTrr2j3BW6X8_3gS68ywdU1BNzQ/edit?usp=sharing) and make a copy. Paste the CSV into the sheet at A1 and make sure "Split text to columns" is selected.
 
 ![split values screenshot](/split-values.png?raw=true "Screenshot from Google Sheets")
+
+Click the Extensions menu and select "Apps Script". Click Run. This should create a number of new sheets populated with some bar charts.
