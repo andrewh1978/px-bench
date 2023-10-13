@@ -9,7 +9,12 @@ cd image
 docker build -t px-bench .
 docker push ...
 ```
-* Edit `px-bench.yml` to set the ConfigMap `env` to set desired values. If necessary, update `image:` to reflect the image you built.
+* Create a namespace for your benchmarking, and set your context to it (or ensure that you are applying all YAML below to that namespace)
+* TBD: Create a wrapper script that will create the namespace and apply all YAML in order and with correct timing!
+* Copy an example `px-bench-env.yml` from the examples directory. There are various examples for different clound enviroments.
+* Edit `px-bench-env.yml` to set the ConfigMap `env` to set desired values. If necessary, update `image:` to reflect the image you built.
+* `kubectl apply -f px-bench.yml` to start apply the configuration settings.
+* Do NOT edit `px-bench-main.yml` (unless you are attempting to change the behavior of the benchmark!)
 * In order to consume most of the available RAM so it is not used for buffering, run `kubectl apply -f chewram.yml`.
 * Wait for `kubectl get pod -n chewram` for all the pods to show as `1/1 Running`.
 * `kubectl apply -f px-bench.yml` to start the run.
