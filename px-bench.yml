@@ -51,7 +51,7 @@ metadata:
 data:
   run.sh: |-
     #!/usr/bin/bash
-    mkdir /fio
+    mkdir /tmp/fio
     #iterate throught the block sizes and rw settings
     i=0
     for sc in $storageclass_list; do
@@ -61,7 +61,7 @@ data:
                 export loops=1000
                 export time_based=time_based
                 i=$[$i+1]
-                filename=/fio/$(printf %.3d $i)_${sc}_$blocksize-$readwrite.fio
+                filename=/tmp/fio/$(printf %.3d $i)_${sc}_$blocksize-$readwrite.fio
                 envsubst < /px-bench/main.fio.tmpl > $filename
                 if [[ ! " ${mixed_workloads[@]} " =~ " ${rw} " ]]; then
                     sed -i '/rwmix/d' $filename
@@ -71,7 +71,7 @@ data:
         done
     done
     for sc in $storageclass_list; do
-        filename=/fio/000_${sc}_warmup.fio
+        filename=/tmp/fio/000_${sc}_warmup.fio
         export blocksize=$warmup_blocksize
         export readwrite=write
         export loops=$warmup_loops
@@ -79,7 +79,7 @@ data:
         export time_based=
         envsubst < /px-bench/main.fio.tmpl > $filename
     done
-    kubectl create configmap fio-config --from-file=/fio -n px-bench
+    kubectl create configmap fio-config --from-file=/tmp/fio -n px-bench
     for sc in $storageclass_list; do
       volumes="$volumes\
           - name: mnt-$sc
@@ -104,7 +104,7 @@ data:
            storage: $pvc_size
     EOF
     done
-    echo $pvcs >/pvc.yml
+    #echo $pvcs >/pvc.yml
     kubectl apply -f - <<EOF
     apiVersion: batch/v1
     kind: Job
@@ -125,6 +125,13 @@ data:
             image: andrewh1978/px-bench
             imagePullPolicy: "Always"
             command: [ "/bin/bash", "/px-bench/fio.sh" ]
+            securityContext:
+              runAsNonRoot: true
+              allowPrivilegeEscalation: false
+              seccompProfile:
+                type: RuntimeDefault
+              capabilities:
+                drop: ["ALL"]
             volumeMounts:
             - name: files
               mountPath: /px-bench
@@ -183,20 +190,20 @@ data:
     ramp_time=$ramp_time
   fio.sh: |-
     #!/usr/bin/bash
-    mkdir /output-json
-    mkdir /output-csv
+    mkdir /tmp/output-json
+    mkdir /tmp/output-csv
     for i in /fio/*; do
       echo $(date +"%Y-%m-%d %H:%M:%S") - Running fio for $i
-      fio $i --output-format=json | tee /output-json/$(basename $i .fio)
+      fio $i --output-format=json | tee /tmp/output-json/$(basename $i .fio)
       if ! [[ $i =~ warmup ]] ; then
-        jq '.jobs[1] | {jobname, read_iops: .read.iops, write_iops: .write.iops, read_lat: .read.lat_ns.mean, write_lat: .write.lat_ns.mean, read_bw: .read.bw, write_bw: .write.bw }' /output-json/$(basename $i .fio) | jq -r ' flatten | @csv' >/output-csv/$(basename $i .fio)
+        jq '.jobs[1] | {jobname, read_iops: .read.iops, write_iops: .write.iops, read_lat: .read.lat_ns.mean, write_lat: .write.lat_ns.mean, read_bw: .read.bw, write_bw: .write.bw }' /tmp/output-json/$(basename $i .fio) | jq -r ' flatten | @csv' >/tmp/output-csv/$(basename $i .fio)
       fi
     done
-    kubectl create configmap fio-output --from-file=/output-json -n px-bench
-    kubectl create configmap fio-csv --from-file=/output-csv -n px-bench
-    echo "storageclass, blocksize, workload, read_iops, write_iops, read_lat, write_lat, read_bw, write_bw" >/csv
-    kubectl get cm -n px-bench fio-csv -o yaml | grep -A 1 '|' | grep -v '|' | sed 's/^ *//;s/"//g;s/_/,/g' >>/csv
-    kubectl create configmap csv --from-file=/csv -n px-bench
+    kubectl create configmap fio-output --from-file=/tmp/output-json -n px-bench
+    kubectl create configmap fio-csv --from-file=/tmp/output-csv -n px-bench
+    echo "storageclass, blocksize, workload, read_iops, write_iops, read_lat, write_lat, read_bw, write_bw" >/tmp/csv
+    kubectl get cm -n px-bench fio-csv -o yaml | grep -A 1 '|' | grep -v '|' | sed 's/^ *//;s/"//g;s/_/,/g' >>/tmp/csv
+    kubectl create configmap csv --from-file=/tmp/csv -n px-bench
 ---
 apiVersion: v1
 kind: ServiceAccount
@@ -257,6 +264,13 @@ spec:
         image: andrewh1978/px-bench
         imagePullPolicy: "Always"
         command: [ "/bin/bash", "/px-bench/run.sh" ]
+        securityContext:
+          runAsNonRoot: true
+          allowPrivilegeEscalation: false
+          seccompProfile:
+            type: RuntimeDefault
+          capabilities:
+            drop: ["ALL"]
         envFrom:
         - configMapRef:
             name: env
