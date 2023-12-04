@@ -25,6 +25,6 @@ This will iterate through the combinations of `blocksize_list`, `readwrite_list`
 
 To retrieve the output for processing, run `kubectl get cm csv -n px-bench -o jsonpath='{.data.csv}'`. Open the [spreadsheet](https://docs.google.com/spreadsheets/d/1MZ4yRnZQA59WjcarMTrr2j3BW6X8_3gS68ywdU1BNzQ/edit?usp=sharing) and make a copy. Paste the CSV into the sheet at A1 and make sure "Split text to columns" is selected.
 
-![split values screenshot](/split-values.png?raw=true "Screenshot from Google Sheets")
+![split values screenshot](/docs/split-values.png?raw=true "Screenshot from Google Sheets")
 
 Click the Extensions menu and select "Apps Script". Click Run. This should create a number of new sheets populated with some bar charts.
