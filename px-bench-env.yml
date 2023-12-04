@@ -1,9 +1,13 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: px-bench
 ---
 apiVersion: v1
 kind: ConfigMap
 metadata:
   name: env
-
+  namespace: px-bench
 ######
 # Options that control the underlying fio benchmark utility. These equate to the same-named option in fio
 #

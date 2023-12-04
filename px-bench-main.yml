@@ -1,8 +1,8 @@
----
 apiVersion: v1
 kind: ConfigMap
 metadata:
   name: files
+  namespace: px-bench
 data:
   run.sh: |-
     #!/usr/bin/bash
@@ -50,6 +50,7 @@ data:
     apiVersion: v1
     metadata:
        name: mnt-$sc
+       namespace: px-bench
     spec:
        storageClassName: $sc
        accessModes:
@@ -65,6 +66,7 @@ data:
     kind: Job
     metadata:
       name: fio
+      namespace: px-bench
     spec:
       template:
         metadata:
@@ -72,6 +74,8 @@ data:
           labels:
             px-bench: fio
         spec:
+          securityContext:
+            fsGroupChangePolicy: "OnRootMismatch"
           serviceAccountName: px-bench
           terminationGracePeriodSeconds: 0
           containers:
@@ -80,7 +84,6 @@ data:
             imagePullPolicy: "Always"
             command: [ "/bin/bash", "/px-bench/fio.sh" ]
             securityContext:
-              runAsNonRoot: true
               allowPrivilegeEscalation: false
               seccompProfile:
                 type: RuntimeDefault
@@ -163,11 +166,13 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: px-bench
+  namespace: px-bench
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
   name: px-bench
+  namespace: px-bench
 rules:
   - apiGroups: [""]
     resources:
@@ -188,6 +193,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   name: px-bench
+  namespace: px-bench
 subjects:
   - kind: ServiceAccount
     name: px-bench
@@ -200,6 +206,7 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   name: run
+  namespace: px-bench
 spec:
   template:
     metadata:
@@ -207,6 +214,8 @@ spec:
       labels:
         px-bench: run
     spec:
+      securityContext:
+        fsGroupChangePolicy: "OnRootMismatch"
       serviceAccountName: px-bench
       terminationGracePeriodSeconds: 0
       containers:
@@ -215,7 +224,6 @@ spec:
         imagePullPolicy: "Always"
         command: [ "/bin/bash", "/px-bench/run.sh" ]
         securityContext:
-          runAsNonRoot: true
           allowPrivilegeEscalation: false
           seccompProfile:
             type: RuntimeDefault
