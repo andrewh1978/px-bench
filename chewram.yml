@@ -70,6 +70,13 @@ spec:
           image: andrewh1978/px-bench
           imagePullPolicy: "IfNotPresent"
           command: [ "perl", "/chewram.pl" ]
+          securityContext:
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            seccompProfile:
+              type: RuntimeDefault
+            capabilities:
+              drop: ["ALL"]
           readinessProbe:
             exec:
               command: [ "cat", "/ready" ]
