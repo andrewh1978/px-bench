@@ -71,6 +71,7 @@ spec:
           imagePullPolicy: "IfNotPresent"
           command: [ "perl", "/chewram.pl" ]
           securityContext:
+            runAsNonRoot: true
             allowPrivilegeEscalation: false
             seccompProfile:
               type: RuntimeDefault
