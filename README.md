@@ -9,6 +9,7 @@ cd image
 docker build -t px-bench .
 docker push ...
 ```
+* Create a namespace for your benchmarking, and set your context to it (or ensure that you are applying all YAML below to that namespace)
 * TBD: Create a wrapper script that will create the namespace and apply all YAML in order and with correct timing!
 * Create the px-bench namespace with `kubectl create ns px-bench`
 * Edit `px-bench-env.yml` to set the ConfigMap `env` to set desired values. If necessary, update `image:` to reflect the image you built. NOTE: SET YOUR STORAGECLASSES IN THIS FILE!
@@ -16,7 +17,7 @@ docker push ...
 * In order to consume most of the available RAM so it is not used for buffering, run `kubectl apply -f chewram.yml`.
 * Wait for `kubectl -n px-bench get pod -n chewram` for all the pods to show as `1/1 Running`.
 * `kubectl apply -f px-bench-env.yml` to apply the configuration settings.
-* `kubectl apply -f px-bench-main.yml` to start the run.
+* `kubectl apply -f px-bench-main.yml` to start the run (ignore the runAsNonRoot warning if on Openshift).
 * Monitor progress with `kubectl logs -n px-bench -l px-bench=fio -f`. With the defaults, runtime is expected to be around 15 minutes.
 * Wait for `kubectl get pod -n px-bench` for all the pods to show as Completed.
 
