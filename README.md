@@ -17,7 +17,7 @@ docker push ...
 * In order to consume most of the available RAM so it is not used for buffering, run `kubectl apply -f chewram.yml`.
 * Wait for `kubectl -n px-bench get pod -n chewram` for all the pods to show as `1/1 Running`.
 * `kubectl apply -f px-bench-env.yml` to apply the configuration settings.
-* `kubectl apply -f px-bench.yml` to start the run.
+* `kubectl apply -f px-bench-main.yml` to start the run.
 * Monitor progress with `kubectl logs -n px-bench -l px-bench=fio -f`. With the defaults, runtime is expected to be around 15 minutes.
 * Wait for `kubectl get pod -n px-bench` for all the pods to show as Completed.
 
@@ -28,3 +28,5 @@ To retrieve the output for processing, run `kubectl get cm csv -n px-bench -o js
 ![split values screenshot](/docs/split-values.png?raw=true "Screenshot from Google Sheets")
 
 Click the Extensions menu and select "Apps Script". Click Run. This should create a number of new sheets populated with some bar charts.
+
+When complete, to clean up, you can either remove the jobs, pods and PVCs from the namespace, or delete the namespace entirely.
