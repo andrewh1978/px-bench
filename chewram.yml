@@ -7,7 +7,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: chewram
-  namespace: chewram
+  namespace: px-bench
 data:
   chewram.pl: |-
     #!/usr/bin/perl
@@ -38,7 +38,7 @@ apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   name: chewram
-  namespace: chewram
+  namespace: px-bench
   labels:
     app: chewram
 spec:
@@ -70,6 +70,12 @@ spec:
           image: andrewh1978/px-bench
           imagePullPolicy: "IfNotPresent"
           command: [ "perl", "/chewram.pl" ]
+          securityContext:
+            allowPrivilegeEscalation: false
+            seccompProfile:
+              type: RuntimeDefault
+            capabilities:
+              drop: ["ALL"]
           readinessProbe:
             exec:
               command: [ "cat", "/ready" ]
