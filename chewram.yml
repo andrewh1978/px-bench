@@ -1,9 +1,4 @@
 apiVersion: v1
-kind: Namespace
-metadata:
-  name: chewram
----
-apiVersion: v1
 kind: ConfigMap
 metadata:
   name: chewram
@@ -23,7 +18,7 @@ data:
             push @array, $string;
             print"Memory free:".int(get_memfree())."MB\n";
     }
-    open F, ">/ready";
+    open F, ">/tmp/ready";
     sleep($sleep * 3600);
     sub get_memfree {
             open F, "</proc/meminfo";
@@ -78,7 +73,7 @@ spec:
               drop: ["ALL"]
           readinessProbe:
             exec:
-              command: [ "cat", "/ready" ]
+              command: [ "cat", "/tmp/ready" ]
             initialDelaySeconds: 5
             periodSeconds: 5
           volumeMounts:
