@@ -9,7 +9,6 @@ cd image
 docker build -t px-bench .
 docker push ...
 ```
-* Create a namespace for your benchmarking, and set your context to it (or ensure that you are applying all YAML below to that namespace)
 * TBD: Create a wrapper script that will create the namespace and apply all YAML in order and with correct timing!
 * Create the px-bench namespace with `kubectl create ns px-bench`
 * Edit `px-bench-env.yml` to set the ConfigMap `env` to set desired values. If necessary, update `image:` to reflect the image you built. NOTE: SET YOUR STORAGECLASSES IN THIS FILE!
