@@ -3,10 +3,9 @@ kind: ConfigMap
 metadata:
   name: env
   namespace: px-bench
-######
-# Options that control the underlying fio benchmark utility. These equate to the same-named option in fio
-#
 data:
+  #node_selector: "kubernetes.io/hostname=node-1-1" # uncomment to pin fio to node(s)
+  # Options that control the underlying fio benchmark utility. These equate to the same-named option in fio
   file_size: "10GiB"        # size of region of IO testing, will also be the size of the file
   pvc_size: "50Gi"          # If the storageclass is backed by a larger disk from infrastructure,
                             # such as a Portworx pool, then pvc_size should be the same size as
