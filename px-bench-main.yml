@@ -34,6 +34,7 @@ data:
         export time_based=
         envsubst < /px-bench/main.fio.tmpl > $filename
     done
+    nodeSelector=$(echo $node_selector | sed 's/=/: /')
     kubectl create configmap fio-config --from-file=/tmp/fio -n px-bench
     for sc in $storageclass_list; do
       volumes="$volumes\
@@ -60,7 +61,6 @@ data:
            storage: $pvc_size
     EOF
     done
-    #echo $pvcs >/pvc.yml
     kubectl apply -f - <<EOF
     apiVersion: batch/v1
     kind: Job
@@ -74,6 +74,8 @@ data:
           labels:
             px-bench: fio
         spec:
+          nodeSelector:
+            $nodeSelector
           securityContext:
             fsGroupChangePolicy: "OnRootMismatch"
           serviceAccountName: px-bench
